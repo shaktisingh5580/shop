@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Shop Records Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 4px;
+            color: white;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        .toast-success {
+            background-color: #4CAF50;
+        }
+        .toast-error {
+            background-color: #F44336;
+        }
+        #offlineMessage {
+            display: none;
+            background-color: #FFA500;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 transition-colors duration-300 ease-in-out">
+    <div id="offlineMessage">
+        You are currently offline. Some features may not be available.
+    </div>
+    <div id="app" class="container mx-auto px-4 py-8">
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-blue-600">Advanced Shop Records</h1>
+            <div>
+                <button id="darkModeToggle" class="bg-gray-200 px-4 py-2 rounded-md mr-2">
+                    <i class="fas fa-moon"></i> Toggle Dark Mode
+                </button>
+                <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded-md hidden">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </header>
+
+        <div id="loginForm" class="bg-white p-8 rounded-lg shadow-md">
+            <h2 class="text-2xl font-semibold mb-4">Login</h2>
+            <input type="email" id="loginEmail" placeholder="Email" required class="w-full p-2 mb-4 border rounded-md">
+            <input type="password" id="loginPassword" placeholder="Password" required class="w-full p-2 mb-4 border rounded-md">
+            <button id="loginBtn" class="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">Login</button>
+        </div>
+
+        <div id="mainContent" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4">Quick Summary</h3>
+                    <p>Total Bakaya: <span id="totalBakaya" class="font-bold text-red-500">0</span></p>
+                    <p>Total Dena Hai: <span id="totalDenaHai" class="font-bold text-green-500">0</span></p>
+                    <p>Net Balance: <span id="netBalance" class="font-bold">0</span></p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4">Quick Actions</h3>
+                    <button id="addTransactionBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md mr-2 mb-2">
+                        <i class="fas fa-plus"></i> Add Transaction
+                    </button>
+                    <button id="generateReportBtn" class="bg-green-500 text-white px-4 py-2 rounded-md mb-2">
+                        <i class="fas fa-file-alt"></i> Generate Report
+                    </button>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4">Search</h3>
+                    <div class="flex">
+                        <input type="text" id="searchInput" placeholder="Search by name or phone" class="flex-grow p-2 border rounded-l-md">
+                        <button id="searchBtn" class="bg-blue-500 text-white px-4 py-2 rounded-r-md">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="addTransactionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center">
+                <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+                    <h2 class="text-2xl font-semibold mb-4">Add Transaction</h2>
+                    <form id="addTransactionForm">
+                        <input type="text" id="customerName" placeholder="Customer Name" required class="w-full p-2 mb-4 border rounded-md">
+                        <input type="tel" id="customerPhone" placeholder="Phone Number" required class="w-full p-2 mb-4 border rounded-md">
+                        <select id="transactionType" required class="w-full p-2 mb-4 border rounded-md">
+                            <option value="">Select Transaction Type</option>
+                            <option value="bakaya">Bakaya</option>
+                            <option value="dena_hai">Dena Hai</option>
+                        </select>
+                        <input type="number" id="transactionAmount" placeholder="Amount" required class="w-full p-2 mb-4 border rounded-md">
+                        <input type="text" id="transactionNote" placeholder="Note (Optional)" class="w-full p-2 mb-4 border rounded-md">
+                        <div class="flex justify-end">
+                            <button type="button" id="cancelTransactionBtn" class="bg-gray-300 text-gray-800 px-4 py-2 rounded-md mr-2">Cancel</button>
+                            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md">Add Transaction</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+                <h3 class="text-xl font-semibold mb-4">Recent Transactions</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full table-auto">
+                        <thead>
+                            <tr class="bg-gray-200">
+                                <th class="px-4 py-2">Date</th>
+                                <th class="px-4 py-2">Customer</th>
+                                <th class="px-4 py-2">Type</th>
+                                <th class="px-4 py-2">Amount</th>
+                                <th class="px-4 py-2">Balance</th>
+                                <th class="px-4 py-2">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4">Monthly Overview</h3>
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4">Top Customers</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold mb-2">Top Bakaya</h4>
+                            <ul id="topBakayaList" class="list-disc pl-5"></ul>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">Top Dena Hai</h4>
+                            <ul id="topDenaHaiList" class="list-disc pl-5"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAqMcMpUxKvobUiV_V_aa0kVnyRwEkKbSg",
+            authDomain: "shop-af103.firebaseapp.com",
+            databaseURL: "https://shop-af103-default-rtdb.firebaseio.com",
+            projectId: "shop-af103",
+            storageBucket: "shop-af103.appspot.com",
+            messagingSenderId: "503963231852",
+            appId: "1:503963231852:web:3ec9da9b095214cc595a49",
+            measurementId: "G-7027YV89VV"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // DOM Elements
+        const loginForm = document.getElementById('loginForm');
+        const mainContent = document.getElementById('mainContent');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const addTransactionBtn = document.getElementById('addTransactionBtn');
+        const addTransactionModal = document.getElementById('addTransactionModal');
+        const addTransactionForm = document.getElementById('addTransactionForm');
+        const cancelTransactionBtn = document.getElementById('cancelTransactionBtn');
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const generateReportBtn = document.getElementById('generateReportBtn');
+        const offlineMessage = document.getElementById('offlineMessage');
+
+        // Check internet connectivity
+        function updateOnlineStatus() {
+            if (navigator.onLine) {
+                offlineMessage.style.display = 'none';
+            } else {
+                offlineMessage.style.display = 'block';
+            }
+        }
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus(); // Initial check
+
+        // Toast notification function
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type === 'success' ? 'toast-success' : 'toast-error'}`;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Authentication state observer
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                loginForm.style.display = 'none';
+                mainContent.style.display = 'block';
+                logoutBtn.style.display = 'inline-block';
+                loadTransactions();
+                updateSummary();
+                updateMonthlyChart();
+                updateTopCustomers();
+            } else {
+                loginForm.style.display = 'block';
+                mainContent.style.display = 'none';
+                logoutBtn.style.display = 'none';
+            }
+        });
+
+        // Login
+        document.getElementById('loginBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            firebase.auth().signInWithEmailAndPassword(email, password)
+                .then(() => {
+                    showToast('Logged in successfully', 'success');
+                })
+                .catch((error) => {
+                    showToast(`Login failed: ${error.message}`, 'error');
+                });
+        });
+
+        // Logout
+        logoutBtn.addEventListener('click', () => {
+            firebase.auth().signOut().then(() => {
+                showToast('Logged out successfully', 'success');
+            }).catch((error) => {
+                console.error('Logout error:', error);
+                showToast('Failed to log out. Please try again.', 'error');
+            });
+        });
+
+        // Dark mode toggle
+        darkModeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark'));
+        });
+
+        // Load dark mode preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark');
+        }
+
+        // Add Transaction
+        addTransactionBtn.addEventListener('click', () => {
+            addTransactionModal.style.display = 'flex';
+        });
+
+        cancelTransactionBtn.addEventListener('click', () => {
+            addTransactionModal.style.display = 'none';
+            addTransactionForm.reset();
+        });
+
+        addTransactionForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const customerName = document.getElementById('customerName').value;
+            const customerPhone = document.getElementById('customerPhone').value;
+            const transactionType = document.getElementById('transactionType').value;
+            const amount = parseFloat(document.getElementById('transactionAmount').value);
+            const note = document.getElementById('transactionNote').value;
+
+            if (!firebase.auth().currentUser) {
+                showToast('You must be logged in to add a transaction.', 'error');
+                return;
+            }
+
+            const userRef = db.ref(`users/${firebase.auth().currentUser.uid}`);
+            userRef.child('customers').orderByChild('name').equalTo(customerName).once('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    // Customer exists, update their balance
+                    const customerKey = Object.keys(snapshot.val())[0];
+                    const customerData = snapshot.val()[customerKey];
+                    const newBalance = transactionType === 'bakaya' 
+                        ? customerData.balance + amount 
+                        : customerData.balance - amount;
+
+                    userRef.child(`customers/${customerKey}`).update({ balance: newBalance });
+
+                    const transaction = {
+                        date: new Date().toISOString(),
+                        customerName,
+                        customerPhone,
+                        type: transactionType,
+                        amount: transactionType === 'bakaya' ? amount : -amount,
+                        note
+                    };
+
+                    userRef.child('transactions').push(transaction)
+                        .then(() => {
+                            addTransactionForm.reset();
+                            addTransactionModal.style.display = 'none';
+                            showToast('Transaction added successfully!', 'success');
+                            loadTransactions();
+                            updateSummary();
+                            updateMonthlyChart();
+                            updateTopCustomers();
+                        })
+                        .catch((error) => {
+                            console.error('Error adding transaction:', error);
+                            showToast(`Failed to add transaction. Error: ${error.message}`, 'error');
+                        });
+                } else {
+                    // New customer, create a new entry
+                    const newCustomer = {
+                        name: customerName,
+                        phone: customerPhone,
+                        balance: transactionType === 'bakaya' ? amount : -amount
+                    };
+
+                    userRef.child('customers').push(newCustomer);
+
+                    const transaction = {
+                        date: new Date().toISOString(),
+                        customerName,
+                        customerPhone,
+                        type: transactionType,
+                        amount: transactionType === 'bakaya' ? amount : -amount,
+                        note
+                    };
+
+                    userRef.child('transactions').push(transaction)
+                        .then(() => {
+                            addTransactionForm.reset();
+                            addTransactionModal.style.display = 'none';
+                            showToast('Transaction added successfully!', 'success');
+                            loadTransactions();
+                            updateSummary();
+                            updateMonthlyChart();
+                            updateTopCustomers();
+                        })
+                        .catch((error) => {
+                            console.error('Error adding transaction:', error);
+                            showToast(`Failed to add transaction. Error: ${error.message}`, 'error');
+                        });
+                }
+            });
+        });
+
+        // Load Transactions
+        function loadTransactions() {
+            const transactionsBody = document.getElementById('transactionsBody');
+            if (!firebase.auth().currentUser) {
+                console.error('User not authenticated');
+                return;
+            }
+            const userRef = db.ref(`users/${firebase.auth().currentUser.uid}`);
+            userRef.child('transactions').orderByChild('date').on('value', (snapshot) => {
+                transactionsBody.innerHTML = '';
+                const customers = {};
+                snapshot.forEach((childSnapshot) => {
+                    const transaction = childSnapshot.val();
+                    if (!customers[transaction.customerName]) {
+                        customers[transaction.customerName] = {
+                            bakaya: 0,
+                            dena_hai: 0,
+                            transactions: []
+                        };
+                    }
+                    if (transaction.type === 'bakaya') {
+                        customers[transaction.customerName].bakaya += transaction.amount;
+                    } else {
+                        customers[transaction.customerName].dena_hai += Math.abs(transaction.amount);
+                    }
+                    customers[transaction.customerName].transactions.push({
+                        key: childSnapshot.key,
+                        ...transaction
+                    });
+                });
+
+                for (const [customerName, data] of Object.entries(customers)) {
+                    const netBalance = data.bakaya - data.dena_hai;
+                    const customerRow = `
+                        <tr class="bg-gray-100">
+                            <td class="px-4 py-2 font-bold" colspan="2">${customerName}</td>
+                            <td class="px-4 py-2">Net Balance</td>
+                            <td class="px-4 py-2 font-bold ${netBalance >= 0 ? 'text-red-500' : 'text-green-500'}">${Math.abs(netBalance).toFixed(2)}</td>
+                            <td class="px-4 py-2">${netBalance >= 0 ? 'Bakaya' : 'Dena Hai'}</td>
+                            <td></td>
+                        </tr>
+                    `;
+                    transactionsBody.innerHTML += customerRow;
+
+                    data.transactions.forEach((transaction) => {
+                        const row = `
+                            <tr>
+                                <td class="px-4 py-2">${new Date(transaction.date).toLocaleDateString()}</td>
+                                <td class="px-4 py-2"></td>
+                                <td class="px-4 py-2">${transaction.type}</td>
+                                <td class="px-4 py-2">${Math.abs(transaction.amount).toFixed(2)}</td>
+                                <td class="px-4 py-2"></td>
+                                <td class="px-4 py-2">
+                                    <button class="text-blue-500 hover:text-blue-700" onclick="editTransaction('${transaction.key}')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="text-red-500 hover:text-red-700 ml-2" onclick="deleteTransaction('${transaction.key}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                        transactionsBody.innerHTML += row;
+                    });
+                }
+            }, (error) => {
+                console.error('Error loading transactions:', error);
+                showToast(`Failed to load transactions. Error: ${error.message}`, 'error');
+            });
+        }
+
+        // Update Summary
+        function updateSummary() {
+            if (!firebase.auth().currentUser) {
+                console.error('User not authenticated');
+                return;
+            }
+            const userRef = db.ref(`users/${firebase.auth().currentUser.uid}`);
+            userRef.child('transactions').once('value', (snapshot) => {
+                let totalBakaya = 0;
+                let totalDenaHai = 0;
+                snapshot.forEach((childSnapshot) => {
+                    const transaction = childSnapshot.val();
+                    if (transaction.type === 'bakaya') {
+                        totalBakaya += transaction.amount;
+                    } else {
+                        totalDenaHai += Math.abs(transaction.amount);
+                    }
+                });
+                document.getElementById('totalBakaya').textContent = totalBakaya.toFixed(2);
+                document.getElementById('totalDenaHai').textContent = totalDenaHai.toFixed(2);
+                const netBalance = totalBakaya - totalDenaHai;
+                document.getElementById('netBalance').textContent = netBalance.toFixed(2);
+                document.getElementById('netBalance').className = netBalance >= 0 ? 'font-bold text-red-500' : 'font-bold text-green-500';
+            }).catch((error) => {
+                console.error('Error updating summary:', error);
+                showToast(`Failed to update summary. Error: ${error.message}`, 'error');
+            });
+        }
+
+        // Update Monthly Chart
+        function updateMonthlyChart() {
+            if (!firebase.auth().currentUser) {
+                console.error('User not authenticated');
+                return;
+            }
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            const userRef = db.ref(`users/${firebase.auth().currentUser.uid}`);
+            userRef.child('transactions').once('value', (snapshot) => {
+                const monthlyData = {
+                    bakaya: Array(12).fill(0),
+                    dena_hai: Array(12).fill(0)
+                };
+                snapshot.forEach((childSnapshot) => {
+                    const transaction = childSnapshot.val();
+                    const month = new Date(transaction.date).getMonth();
+                    if (transaction.type === 'bakaya') {
+                        monthlyData.bakaya[month] += transaction.amount;
+                    } else {
+                        monthlyData.dena_hai[month] += Math.abs(transaction.amount);
+                    }
+                });
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                        datasets: [
+                            {
+                                label: 'Bakaya',
+                                data: monthlyData.bakaya,
+                                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                                borderColor: 'rgb(255, 99, 132)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Dena Hai',
+                                data: monthlyData.dena_hai,
+                                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                                borderColor: 'rgb(75, 192, 192)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }).catch((error) => {
+                console.error('Error updating monthly chart:', error);
+                showToast(`Failed to update monthly chart. Error: ${error.message}`, 'error');
+            });
+        }
+
+        // Update Top Customers
+        function updateTopCustomers() {
+            if (!firebase.auth().currentUser) {
+                console.error('User not authenticated');
+                return;
+            }
+            const topBakayaList = document.getElementById('topBakayaList');
+            const topDenaHaiList = document.getElementById('topDenaHaiList');
+            const userRef = db.ref(`users/${firebase.auth().currentUser.uid}`);
+            userRef.child('customers').once('value', (snapshot) => {
+                const customers = [];
+                snapshot.forEach((childSnapshot) => {
+                    customers.push({
+                        name: childSnapshot.key,
+                        ...childSnapshot.val()
+                    });
+                });
+                
+                const sortedBakaya = customers
+                    .filter(customer => customer.balance > 0)
+                    .sort((a, b) => b.balance - a.balance)
+                    .slice(0, 5);
+                const sortedDenaHai = customers
+                    .filter(customer => customer.balance < 0)
+                    .sort((a, b) => a.balance - b.balance)
+                    .slice(0, 5);
+
+                topBakayaList.innerHTML = '';
+                sortedBakaya.forEach((customer) => {
+                    const li = document.createElement('li');
+                    li.textContent = `${customer.name}: ${customer.balance.toFixed(2)}`;
+                    topBakayaList.appendChild(li);
+                });
+
+                topDenaHaiList.innerHTML = '';
+                sortedDenaHai.forEach((customer) => {
+                    const li = document.createElement('li');
+                    li.textContent = `${customer.name}: ${Math.abs(customer.balance).toFixed(2)}`;
+                    topDenaHaiList.appendChild(li);
+                });
+            }).catch((error) => {
+                console.error('Error updating top customers:', error);
+                showToast(`Failed to update top customers. Error: ${error.message}`, 'error');
+            });
+        }
+
+        // Search functionality
+        searchBtn.addEventListener('click', () => {
+            const searchTerm = searchInput.value.toLowerCase();
+            if (!firebase.auth().currentUser) {
+                console.error('User not authenticated');
+                return;
+            }
+            const userRef = db.ref(`users/${firebase.auth().currentUser.uid}`);
+            userRef.child('customers').orderByChild('name').startAt(searchTerm).endAt(searchTerm + "\uf8ff").once('value', (snapshot) => {
+                const transactionsBody = document.getElementById('transactionsBody');
+                transactionsBody.innerHTML = '';
+                snapshot.forEach((childSnapshot) => {
+                    const customer = childSnapshot.val();
+                    const row = `
+                        <tr>
+                            <td class="px-4 py-2">${customer.name}</td>
+                            <td class="px-4 py-2">${customer.phone}</td>
+                            <td class="px-4 py-2">Balance</td>
+                            <td class="px-4 py-2 font-bold ${customer.balance >= 0 ? 'text-red-500' : 'text-green-500'}">${Math.abs(customer.balance).toFixed(2)}</td>
+                            <td class="px-4 py-2">${customer.balance >= 0 ? 'Bakaya' : 'Dena Hai'}</td>
+                            <td class="px-4 py-2">
+                                <button class="text-blue-500 hover:text-blue-700" onclick="editCustomer('${childSnapshot.key}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    transactionsBody.innerHTML += row;
+                });
+            }).catch((error) => {
+                console.error('Error searching customers:', error);
+                showToast(`Failed to search customers. Error: ${error.message}`, 'error');
+            });
+        });
+
+        // Edit Transaction
+        function editTransaction(key) {
+            if (!firebase.auth().currentUser) {
+                console.error('User not authenticated');
+                return;
+            }
+            const userRef = db.ref(`users/${firebase.auth().currentUser.uid}`);
+            userRef.child(`transactions/${key}`).once('value', (snapshot) => {
+                const transaction = snapshot.val();
+                document.getElementById('customerName').value = transaction.customerName;
+                document.getElementById('customerPhone').value = transaction.customerPhone;
+                document.getElementById('transactionType').value = transaction.type;
+                document.getElementById('transactionAmount').value = Math.abs(transaction.amount);
+                document.getElementById('transactionNote').value = transaction.note || '';
+                
+                addTransactionModal.style.display = 'flex';
+                addTransactionForm.onsubmit = (e) => {
+                    e.preventDefault();
+                    const updatedTransaction = {
+                        ...transaction,
+                        customerName: document.getElementById('customerName').value,
+                        customerPhone: document.getElementById('customerPhone').value,
+                        type: document.getElementById('transactionType').value,
+                        amount: document.getElementById('transactionType').value === 'bakaya' ?
+                            parseFloat(document.getElementById('transactionAmount').value) :
+                            -parseFloat(document.getElementById('transactionAmount').value),
+                        note: document.getElementById('transactionNote').value
+                    };
+                    userRef.child(`transactions/${key}`).update(updatedTransaction)
+                        .then(() => {
+                            addTransactionForm.reset();
+                            addTransactionModal.style.display = 'none';
+                            showToast('Transaction updated successfully!', 'success');
+                            loadTransactions();
+                            updateSummary();
+                            updateMonthlyChart();
+                            updateTopCustomers();
+                        })
+                        .catch((error) => {
+                            console.error('Error updating transaction:', error);
+                            showToast(`Failed to update transaction. Error: ${error.message}`, 'error');
+                        });
+                };
+            }).catch((error) => {
+                console.error('Error fetching transaction for edit:', error);
+                showToast(`Failed to fetch transaction for edit. Error: ${error.message}`, 'error');
+            });
+        }
+
+        // Delete Transaction
+        function deleteTransaction(key) {
+            if (!firebase.auth().currentUser) {
+                console.error('User not authenticated');
+                return;
+            }
+            if (confirm('Are you sure you want to delete this transaction?')) {
+                const userRef = db.ref(`users/${firebase.auth().currentUser.uid}`);
+                userRef.child(`transactions/${key}`).remove()
+                    .then(() => {
+                        showToast('Transaction deleted successfully!', 'success');
+                        loadTransactions();
+                        updateSummary();
+                        updateMonthlyChart();
+                        updateTopCustomers();
+                    })
+                    .catch((error) => {
+                        console.error('Error deleting transaction:', error);
+                        showToast(`Failed to delete transaction. Error: ${error.message}`, 'error');
+                    });
+            }
+        }
+
+        // Generate Report
+        generateReportBtn.addEventListener('click', () => {
+            if (!firebase.auth().currentUser) {
+                console.error('User not authenticated');
+                return;
+            }
+            const userRef = db.ref(`users/${firebase.auth().currentUser.uid}`);
+            userRef.child('transactions').once('value', (snapshot) => {
+                let report = 'Date,Customer,Type,Amount\n';
+                snapshot.forEach((childSnapshot) => {
+                    const t = childSnapshot.val();
+                    report += `${t.date},${t.customerName},${t.type},${t.amount}\n`;
+                });
+                const blob = new Blob([report], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                if (link.download !== undefined) {
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', 'transactions_report.csv');
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+                showToast('Report generated successfully!', 'success');
+            }).catch((error) => {
+                console.error('Error generating report:', error);
+                showToast(`Failed to generate report. Error: ${error.message}`, 'error');
+            });
+        });
+
+        // Edit Customer
+        function editCustomer(key) {
+            if (!firebase.auth().currentUser) {
+                console.error('User not authenticated');
+                return;
+            }
+            const userRef = db.ref(`users/${firebase.auth().currentUser.uid}`);
+            userRef.child(`customers/${key}`).once('value', (snapshot) => {
+                const customer = snapshot.val();
+                document.getElementById('customerName').value = customer.name;
+                document.getElementById('customerPhone').value = customer.phone;
+                document.getElementById('transactionType').value = customer.balance >= 0 ? 'bakaya' : 'dena_hai';
+                document.getElementById('transactionAmount').value = Math.abs(customer.balance);
+                
+                addTransactionModal.style.display = 'flex';
+                addTransactionForm.onsubmit = (e) => {
+                    e.preventDefault();
+                    const updatedCustomer = {
+                        name: document.getElementById('customerName').value,
+                        phone: document.getElementById('customerPhone').value,
+                        balance: document.getElementById('transactionType').value === 'bakaya' ?
+                            parseFloat(document.getElementById('transactionAmount').value) :
+                            -parseFloat(document.getElementById('transactionAmount').value)
+                    };
+                    userRef.child(`customers/${key}`).update(updatedCustomer)
+                        .then(() => {
+                            addTransactionForm.reset();
+                            addTransactionModal.style.display = 'none';
+                            showToast('Customer updated successfully!', 'success');
+                            loadTransactions();
+                            updateSummary();
+                            updateMonthlyChart();
+                            updateTopCustomers();
+                        })
+                        .catch((error) => {
+                            console.error('Error updating customer:', error);
+                            showToast(`Failed to update customer. Error: ${error.message}`, 'error');
+                        });
+                };
+            }).catch((error) => {
+                console.error('Error fetching customer for edit:', error);
+                showToast(`Failed to fetch customer for edit. Error: ${error.message}`, 'error');
+            });
+        }
+    </script>
+</body>
+</html>
